@@ -1,6 +1,13 @@
-import datetime
+import datetime as dt
 import json
 import csv
+START_TIME = dt.datetime.now().strftime('%Y_%m_%d-%Hh%M')
+PLACE_DEST = f"./places_{START_TIME}.csv"
+ACTIVITIES_DEST = f"./activities_{START_TIME}.csv"
+PLACE_HEADER = ['place_id', 'lat', 'long', 'address', 'start_time', 'end_time', 'confidence','confirmed_by_user']
+ACTIVITY_HEADER = ['trip_id', 'lat', 'long', 'order', 'timestamp', 'distance', 'ac_type', 'confidence','confirmed_by_user']
+# trip_id = start_timestamp
+
 
 #Creates a list from placeVisit data.
 def placeVisit(placeVisit_dict):
@@ -19,7 +26,8 @@ def placeVisit(placeVisit_dict):
     place_visit = [place_id,lat, lon, address, start_time, end_time, confidence]
     return place_visit
 
-#Returns a list of all the waypoints of a activity.
+
+# Returns a list of all the waypoints of a activity.
 def activitySegment(activitySegment_dict):
     start_point = activityStartPoint(activitySegment_dict)
     end_point = activityEndPoint(activitySegment_dict)
@@ -28,6 +36,7 @@ def activitySegment(activitySegment_dict):
     end_point.insert(1, (len(activity_points)) + 1)
     activity_points.append(end_point)
     return activity_points
+
 
 #Set start point of activity as a list.
 def activityStartPoint(activitySegment_dict):
@@ -39,12 +48,13 @@ def activityStartPoint(activitySegment_dict):
     distance = activitySegment_dict.get("distance", 0)
     ac_type = activitySegment_dict["activityType"]
     confidence = activitySegment_dict["confidence"]
-    time_convention = timeStampToAMPM(int(trip_id))
+    # time_convention = timeStampToAMPM(int(trip_id))
     #Formatting variables
     lat = int(lat)/1e7
     lon = int(lon)/1e7
-    start_point = [trip_id, order, lat, lon, time_stamp, distance, ac_type, confidence, time_convention]
+    start_point = [trip_id, order, lat, lon, time_stamp, distance, ac_type, confidence] #, time_convention]
     return start_point
+
 
 #Creates a list of list with each waypoint of activity.
 def activityRawPoints(activitySegment_dict, start_point):
@@ -61,9 +71,10 @@ def activityRawPoints(activitySegment_dict, start_point):
         distance = start_point[5]
         ac_type = start_point[6]
         confidence = start_point[7]
-        time_convention = timeStampToAMPM(int(trip_id))
+        # time_convention = timeStampToAMPM(int(trip_id))
+
         #Formatting variables
-        list_point = [trip_id, order, lat, lon, time_stamp, distance, ac_type, confidence, time_convention]
+        list_point = [trip_id, order, lat, lon, time_stamp, distance, ac_type, confidence] #, time_convention]
         points.append(list_point)
     elif "simplifiedRawPath" in activitySegment_dict.keys():
       raw_points = activitySegment_dict["simplifiedRawPath"]["points"]
@@ -76,13 +87,15 @@ def activityRawPoints(activitySegment_dict, start_point):
         distance = start_point[5]
         ac_type = start_point[6]
         confidence = start_point[7]
-        time_convention = timeStampToAMPM(int(trip_id))
-        #Formatting variables
-        list_point = [trip_id, order, lat, lon, time_stamp, distance, ac_type, confidence, time_convention]
+        # time_convention = timeStampToAMPM(int(trip_id))
+
+        # Formatting variables
+        list_point = [trip_id, order, lat, lon, time_stamp, distance, ac_type, confidence] #, time_convention]
         points.append(list_point)
     return points
 
-#Set end point of activity as a list.
+
+# Set end point of activity as a list.
 def activityEndPoint(activitySegment_dict):
     trip_id = activitySegment_dict["duration"]["startTimestampMs"]
     lat = activitySegment_dict["endLocation"]["latitudeE7"]
@@ -92,30 +105,38 @@ def activityEndPoint(activitySegment_dict):
     ac_type = activitySegment_dict["activityType"]
     confidence = activitySegment_dict["confidence"]
     time_convention = timeStampToAMPM(int(trip_id))
-    #Formatting variables
+    # Formatting variables
     lat = int(lat)/1e7
     lon = int(lon)/1e7
     time_stamp = timeStampToDate(int(time_stamp))
     end_point = [trip_id, lat, lon, time_stamp, distance, ac_type, confidence, time_convention]
     return end_point
 
-#Convert milliseconds timestamp into a readable date.
+# Convert milliseconds timestamp into a readable date.
 def timeStampToDate(milliseconds):
-    date = datetime.datetime.fromtimestamp(milliseconds/1000.0)
+    date = dt.datetime.fromtimestamp(milliseconds / 1000.0)
     date = date.strftime('%Y-%m-%d %H:%M:%S')
     return date
 
-#Check time convention.
+
+# Check time convention.
 def timeStampToAMPM(milliseconds):
-    date = datetime.datetime.fromtimestamp(milliseconds/1000.0)
+    date = dt.datetime.fromtimestamp(milliseconds / 1000.0)
     if date.hour < 12:
       time_convention = "AM"
     else:
       time_convention = "PM"
     return time_convention
 
-#Method to run all the scripts.
+
+# Method to run all the scripts.
 def parse_data(data):
+    # create a header for each file
+    write_places_csv(PLACE_HEADER)
+    with open(ACTIVITIES_DEST,'a') as f:
+        f.write(', '.join(ACTIVITY_HEADER))
+
+    # dump data to 2 separate csv
     for data_unit in data["timelineObjects"]:
       if "activitySegment" in data_unit.keys():
         write_activity_points_csv(activitySegment(data_unit["activitySegment"]))
@@ -124,26 +145,28 @@ def parse_data(data):
       else:
         print("Error")
 
+
 #CSV writers.
 def write_places_csv(place_data_list):
-  with open('FULL_places.csv', 'a', newline='') as file:
+  with open(PLACE_DEST, 'a', newline='') as file:
     writer = csv.writer(file, delimiter=',')
     writer.writerow(place_data_list)
 
+
 def write_activity_points_csv(point_data_list):
-  with open('FULL_activity_points.csv', 'a', newline='') as file:
+  with open(ACTIVITIES_DEST, 'a', newline='') as file:
     writer = csv.writer(file, delimiter=',')
     writer.writerows(point_data_list)
 
 
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
+if __name__ == '__main__':
 
-files = ["04-2019_APRIL.json", "05-2019_MAY.json", "06-2019_JUNE.json", "07-2019_JULY.json", "08-2019_AUGUST.json", "09-2019_SEPTEMBER.json"]
+    files = ["04-2019_APRIL.json", "05-2019_MAY.json", "06-2019_JUNE.json", "07-2019_JULY.json", "08-2019_AUGUST.json", "09-2019_SEPTEMBER.json"]
+    files = ["../Takeout 20200616T120921Z-001/Location History/Semantic Location History/2020/2020_JUNE.json",
+             "../Takeout 20200616T120921Z-001/Location History/Semantic Location History/2020/2020_MAY.json"]
+    for file in files:
+      # import pdb; pdb.set_trace()
 
-for file in files:
-  # import pdb; pdb.set_trace()
-
-  with open(f"data/{file}") as f:
-    data = json.load(f)
-  parse_data(data)
+      with open(file) as f:
+        data = json.load(f)
+      parse_data(data)
